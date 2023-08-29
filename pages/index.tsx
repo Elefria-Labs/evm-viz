@@ -8,6 +8,8 @@ import {
   Box,
   Grid,
   GridItem,
+  Collapse,
+  Heading,
 } from "@chakra-ui/react";
 import type { NextPage } from "next";
 import Head from "next/head";
@@ -25,6 +27,7 @@ const Home: NextPage = () => {
   const [dataTypes, setDataTypes] = useState<Record<string, DataType>>();
   const [highlightedCells, setHighlightedCells] = useState<number[]>([]);
   const [methodIdentifiers, setMethodIdentifiers] = useState<any>();
+  const [show, setShow] = useState(false);
 
   const compileSourceCode = (event: React.MouseEvent<HTMLButtonElement>) => {
     const button = event.currentTarget;
@@ -82,7 +85,9 @@ const Home: NextPage = () => {
 
     return (
       <Box>
-        <Text>ByteCode</Text>
+        <Heading size={"md"} mb={4}>
+          Bytecode
+        </Heading>
         <Box maxW="350px" maxH={300} overflowY="auto">
           <div dangerouslySetInnerHTML={{ __html: ByteCodeText }} />
         </Box>
@@ -105,11 +110,9 @@ const Home: NextPage = () => {
           <Flex justifyContent={"space-between"}>
             <Card>
               <CardBody>
-                <Text>
-                  {" "}
-                  <span color="blue" />
+                <Heading size={"md"} mb={4}>
                   Source Code
-                </Text>
+                </Heading>
                 <Textarea
                   rows={20}
                   cols={100}
@@ -123,14 +126,22 @@ const Home: NextPage = () => {
                 >
                   Compile
                 </Button>
+
+                <Box mt={8} mb={4}>
+                  <Heading size={"md"}>ABI</Heading>
+                  <Collapse startingHeight={20} in={show}>
+                    <Textarea readOnly rows={10} cols={100} value={abi} />
+                  </Collapse>
+                  <Button size="sm" onClick={() => setShow(!show)} mt="1rem">
+                    Show {show ? "Less" : "More"}
+                  </Button>
+                </Box>
               </CardBody>
             </Card>
             <Card>
               <CardBody>
-                <Text>ABI</Text>
-                <Textarea readOnly rows={10} cols={100} value={abi} />
-                <Text>Compiled ByteCode</Text>
-                <Textarea readOnly rows={10} cols={100} value={byteCode} />
+                {/* <Text>Compiled ByteCode</Text>
+                <Textarea readOnly rows={10} cols={100} value={byteCode} /> */}
                 {highlightedByteCode()}
               </CardBody>
             </Card>
