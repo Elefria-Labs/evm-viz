@@ -65,20 +65,27 @@ const Home: NextPage = () => {
     }
     let ByteCodeText = "";
     const data = (" " + byteCode).slice(1);
-    for (let i = 0; i < data.length; ) {
+    const initCodeStart = "6080604052";
+    const endOfInitCode = data.indexOf(initCodeStart, initCodeStart.length);
+    const initCode = data.substring(0, endOfInitCode);
+    console.log("inicode", initCode);
+    ByteCodeText = `<span style="color:green">${initCode}</span>`;
+    for (let i = endOfInitCode; i < data.length; ) {
       const len8 = data.substring(i, i + 8);
       if (Object.values(methodIdentifiers).includes(len8)) {
-        ByteCodeText = `${ByteCodeText}  <div label={slot.label} aria-label={slot.label} class="tooltip"><span style="color:blue">${len8}</span></div>`;
+        ByteCodeText = `${ByteCodeText}<span style="color:blue">${len8}</span>`;
         i = i + 8;
       }
       ByteCodeText = `${ByteCodeText}${data[i]}`;
       i = i + 1;
     }
-    console.log("butecod", ByteCodeText);
 
     return (
-      <Box maxW="300px">
-        <div dangerouslySetInnerHTML={{ __html: ByteCodeText }} />
+      <Box>
+        <Text>ByteCode</Text>
+        <Box maxW="350px" maxH={300} overflowY="auto">
+          <div dangerouslySetInnerHTML={{ __html: ByteCodeText }} />
+        </Box>
       </Box>
     );
   };
