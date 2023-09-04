@@ -10,6 +10,11 @@ import {
   GridItem,
   Collapse,
   Heading,
+  Accordion,
+  AccordionItem,
+  AccordionButton,
+  AccordionIcon,
+  AccordionPanel,
 } from "@chakra-ui/react";
 import type { NextPage } from "next";
 import Head from "next/head";
@@ -85,10 +90,7 @@ const Home: NextPage = () => {
 
     return (
       <Box>
-        <Heading size={"md"} mb={4}>
-          Bytecode
-        </Heading>
-        <Box maxW="350px" maxH={300} overflowY="auto">
+        <Box maxH={300} overflowY="auto">
           <div dangerouslySetInnerHTML={{ __html: ByteCodeText }} />
         </Box>
       </Box>
@@ -106,8 +108,8 @@ const Home: NextPage = () => {
       </Head>
       <Text className={styles.title}>EVM Slot Visualizer</Text>
       <Flex justifyContent="center" alignItems="center" flexDirection="column">
-        <Flex mt="10px" maxW="900">
-          <Flex justifyContent={"space-between"}>
+        <Flex mt="10px" maxW="900" flexDirection="column">
+          <Flex>
             <Card>
               <CardBody>
                 <Heading size={"md"} mb={4}>
@@ -126,73 +128,119 @@ const Home: NextPage = () => {
                 >
                   Compile
                 </Button>
-
-                <Box mt={8} mb={4}>
-                  <Heading size={"md"}>ABI</Heading>
-                  <Collapse startingHeight={20} in={show}>
-                    <Textarea readOnly rows={10} cols={100} value={abi} />
-                  </Collapse>
-                  <Button size="sm" onClick={() => setShow(!show)} mt="1rem">
-                    Show {show ? "Less" : "More"}
-                  </Button>
-                </Box>
-              </CardBody>
-            </Card>
-            <Card>
-              <CardBody>
-                {/* <Text>Compiled ByteCode</Text>
-                <Textarea readOnly rows={10} cols={100} value={byteCode} /> */}
-                {highlightedByteCode()}
+                {/* <Heading size={"md"}>ABI</Heading> */}
               </CardBody>
             </Card>
           </Flex>
+          <Accordion defaultIndex={[1]} allowMultiple>
+            <AccordionItem>
+              <AccordionButton>
+                <Box as="span" flex="1" textAlign="left" color="black">
+                  <Heading size={"md"} mb={4}>
+                    ABI
+                  </Heading>
+                </Box>
+                <AccordionIcon color={"black"} />
+              </AccordionButton>
+
+              <AccordionPanel pb={4}>
+                <Textarea readOnly rows={10} cols={100} value={abi} />
+              </AccordionPanel>
+            </AccordionItem>
+
+            <AccordionItem>
+              <AccordionButton>
+                <Box as="span" flex="1" textAlign="left" color="black">
+                  <Heading size={"md"} mb={4}>
+                    Bytecode
+                  </Heading>
+                </Box>
+                <AccordionIcon color={"black"} />
+              </AccordionButton>
+
+              <AccordionPanel pb={4}>{highlightedByteCode()}</AccordionPanel>
+            </AccordionItem>
+
+            <AccordionItem>
+              <AccordionButton>
+                <Box as="span" flex="1" textAlign="left" color="black">
+                  <Heading size={"md"} mb={4}>
+                    Storage Layout
+                  </Heading>
+                </Box>
+                <AccordionIcon color={"black"} />
+              </AccordionButton>
+              <AccordionPanel pb={4}>
+                {storageLayout != null && !!dataTypes && (
+                  <>
+                    <StorageLayoutParser
+                      storageLayout={storageLayout}
+                      types={dataTypes}
+                      methodIdentifiers={methodIdentifiers}
+                    />
+                  </>
+                )}
+              </AccordionPanel>
+            </AccordionItem>
+            <AccordionItem>
+              <AccordionButton>
+                <Box as="span" flex="1" textAlign="left" color="black">
+                  <Heading size={"md"} mb={4}>
+                    Method Selectors
+                  </Heading>
+                </Box>
+                <AccordionIcon color={"black"} />
+              </AccordionButton>
+              <AccordionPanel pb={4}>
+                {methodIdentifiers && (
+                  <Box>
+                    <Grid
+                      templateColumns="repeat(2, 1fr)"
+                      gap={1}
+                      mb={4}
+                      style={{ border: "0.5px solid black" }}
+                    >
+                      <GridItem w="100%" h="8" borderRight="1px solid black">
+                        <Text>Method</Text>
+                      </GridItem>
+                      <GridItem w="100%" h="8" borderRight="1px solid black">
+                        <Text>Selector</Text>
+                      </GridItem>
+                    </Grid>
+                    {Object.keys(methodIdentifiers).map((key, i) => {
+                      return (
+                        <Grid
+                          templateColumns="repeat(2, 1fr)"
+                          gap={1}
+                          mb={4}
+                          style={{ border: "0.5px solid black" }}
+                          key={i}
+                        >
+                          <GridItem
+                            w="100%"
+                            h="8"
+                            borderRight="1px solid black"
+                          >
+                            <Text>{key}</Text>
+                          </GridItem>
+                          <GridItem
+                            w="100%"
+                            h="8"
+                            borderRight="1px solid black"
+                          >
+                            <Text>{methodIdentifiers[key]}</Text>
+                          </GridItem>
+                        </Grid>
+                      );
+                    })}
+                  </Box>
+                )}
+              </AccordionPanel>
+            </AccordionItem>
+          </Accordion>
         </Flex>
-        <Flex mt="10px" maxW="900">
-          {storageLayout != null && !!dataTypes && (
-            <>
-              <StorageLayoutParser
-                storageLayout={storageLayout}
-                types={dataTypes}
-                methodIdentifiers={methodIdentifiers}
-              />
-            </>
-          )}
-          {methodIdentifiers && (
-            <Box>
-              <Grid
-                templateColumns="repeat(2, 1fr)"
-                gap={1}
-                mb={4}
-                style={{ border: "0.5px solid black" }}
-              >
-                <GridItem w="100%" h="8" borderRight="1px solid black">
-                  <Text>Method</Text>
-                </GridItem>
-                <GridItem w="100%" h="8" borderRight="1px solid black">
-                  <Text>Selector</Text>
-                </GridItem>
-              </Grid>
-              {Object.keys(methodIdentifiers).map((key, i) => {
-                return (
-                  <Grid
-                    templateColumns="repeat(2, 1fr)"
-                    gap={1}
-                    mb={4}
-                    style={{ border: "0.5px solid black" }}
-                    key={i}
-                  >
-                    <GridItem w="100%" h="8" borderRight="1px solid black">
-                      <Text>{key}</Text>
-                    </GridItem>
-                    <GridItem w="100%" h="8" borderRight="1px solid black">
-                      <Text>{methodIdentifiers[key]}</Text>
-                    </GridItem>
-                  </Grid>
-                );
-              })}
-            </Box>
-          )}
-        </Flex>
+
+        <Flex mt="10px" maxW="900"></Flex>
       </Flex>
     </div>
   );
