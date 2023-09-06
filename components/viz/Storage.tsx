@@ -85,7 +85,7 @@ const StorageLayoutParser: React.FC<StorageLayoutParserProps> = ({
         16
       )}`;
 
-      const colors = generateShades()?.[0];
+      // const colors = generateShades()?.[0];
       for (let i = 0; i < numBytes; ++i) {
         items.push(
           <Tooltip label={slot.label} aria-label={slot.label}>
@@ -134,7 +134,27 @@ const StorageLayoutParser: React.FC<StorageLayoutParserProps> = ({
   console.log("methodIdentifiers", methodIdentifiers);
   return (
     <Box>
-      <Heading>Storage Layout Visualization</Heading>
+      <Grid templateColumns="repeat(3, 1fr)" gap={1} mb={4}>
+        <GridItem w="100%" h="8">
+          <Text>*Each box represent 8 bytes.</Text>
+        </GridItem>
+        <GridItem
+          w="100%"
+          h="8"
+          bg="gray.400"
+          style={{ borderRadius: 10, borderRightWidth: "2px" }}
+        >
+          <Text>Occupied</Text>
+        </GridItem>
+        <GridItem
+          w="100%"
+          h="8"
+          bg="gray.800"
+          style={{ borderRadius: 10, borderRightWidth: "2px", color: "white" }}
+        >
+          <Text>Unoccupied</Text>
+        </GridItem>
+      </Grid>
       <Box p={8}>
         <Grid
           templateColumns="repeat(6, 1fr)"
