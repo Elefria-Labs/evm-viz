@@ -26,12 +26,13 @@ import StorageLayoutParser, {
   DataType,
   SlotType,
 } from "../components/viz/Storage";
-import { sampleContract } from "../data/data";
+import { readNonPrimaryDataType } from "../components/viz/utils";
+import { sampleContract2 } from "../data/data";
 import { compile } from "../src/sol/compiler";
 import styles from "../styles/Home.module.css";
 
 const Home: NextPage = () => {
-  const [sourceCode, setSourceCode] = useState(sampleContract);
+  const [sourceCode, setSourceCode] = useState(sampleContract2);
   const [byteCode, setByteCode] = useState("");
   const [abi, setAbi] = useState("");
   const [storageLayout, setStorageLayout] = useState<SlotType[]>();
@@ -44,13 +45,16 @@ const Home: NextPage = () => {
     const button = event.currentTarget;
     button.disabled = true;
     compile(sourceCode)
-      .then((contractData) => {
+      .then(async (contractData) => {
         const data = contractData[0];
         setByteCode(() => data.byteCode);
         setAbi(() => JSON.stringify(data.abi));
         setStorageLayout(data.storageLayout.storage);
         setDataTypes(data.storageLayout.types);
-        visualizeStorageLayout(data.storageLayout);
+        await visualizeStorageLayout(
+          data.storageLayout,
+          data.storageLayout.types
+        );
         setMethodIdentifiers(data.evm.methodIdentifiers);
       })
       .catch((err) => {
@@ -61,14 +65,16 @@ const Home: NextPage = () => {
         button.disabled = false;
       });
   };
-  const visualizeStorageLayout = (storageLayout: any) => {
-    // Implement the logic to visualize the storage layout using a grid
-    // For simplicity, we'll just highlight the first 4 storage slots (32 bytes each)
-    const highlightedCells: number[] = [];
-    for (let i = 0; i < 4; i++) {
-      highlightedCells.push(i);
-    }
-    setHighlightedCells(highlightedCells);
+  const visualizeStorageLayout = async (
+    storageLayout: any,
+    dataTypes: Record<string, DataType>
+  ) => {
+    const data = await readNonPrimaryDataType(
+      storageLayout.storage,
+      "test",
+      dataTypes
+    );
+    console.log("readNonPrimaryDataType", data);
   };
 
   console.log("storageLayout", storageLayout);
@@ -83,8 +89,10 @@ const Home: NextPage = () => {
     const endOfInitCode = data.indexOf(initCodeStart, initCodeStart.length);
     const initCode = data.substring(0, endOfInitCode);
     ByteCodeText = `<span style="color:green">${initCode}</span>`;
+    console.log("methodIdentifiers", methodIdentifiers);
     for (let i = endOfInitCode; i < data.length; ) {
       const len8 = data.substring(i, i + 8);
+
       if (Object.values(methodIdentifiers).includes(len8)) {
         ByteCodeText = `${ByteCodeText}<span style="color:blue">${len8}</span>`;
         i = i + 8;
@@ -201,7 +209,7 @@ const Home: NextPage = () => {
                             <Text color="blue" mb={4}>
                               *represents method selectors
                             </Text>
-                            {highlightedByteCode()}
+                            {methodIdentifiers != null && highlightedByteCode()}
                           </AccordionPanel>
                         </AccordionItem>
                         <AccordionItem>
