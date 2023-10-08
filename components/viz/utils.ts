@@ -1,5 +1,15 @@
 import { ethers, BigNumberish, keccak256 } from "ethers";
 import { DataType, SlotType } from "./Storage";
+import { Network, Alchemy } from "alchemy-sdk";
+import web3 from "Web3";
+import BigNumber from "bignumber.js";
+//0x2ce69C73AAFD083E703F8986f6083159a98383d6
+const settings = {
+  apiKey: "42VDfI4iRFwnfKrATriHkQtEZmY9_vDO", // Replace with your Alchemy API Key.
+  network: Network.MATIC_MUMBAI, // Replace with your network.
+};
+
+const alchemy = new Alchemy(settings);
 
 export interface StorageLayoutEntry {
   slot: string; // The storage slot in hex format (e.g., "0x0")
@@ -11,6 +21,26 @@ export interface StorageLayoutEntry {
 interface ContractStorage {
   [key: string]: string;
 }
+
+export const getNextAddress = (currentAddress: string) => {
+  const currentAddressNumber = BigInt(currentAddress); // Convert the address to a BigInt
+
+  // Increment the address by 1
+  const nextAddressNumber = currentAddressNumber + BigInt(1);
+
+  // Convert the next address back to a hexadecimal string
+  const nextAddress = "0x" + nextAddressNumber.toString(16);
+
+  return nextAddress;
+};
+
+export const getValueAtSlotAddressForArray = async (address) => {
+  const arraySlotValue = await alchemy.core.getStorageAt(
+    "0x2ce69C73AAFD083E703F8986f6083159a98383d6",
+    address as string
+  );
+  return web3.utils.hexToNumber(arraySlotValue);
+};
 
 export async function readNonPrimaryDataType(
   storageLayout: SlotType[],
@@ -51,6 +81,7 @@ export async function readNonPrimaryDataType(
     } else if (variableType.includes("array") && !isElement) {
       // If the variable is an array, read each element separately
       const arrayLength = await getContractStorage(variableSlot);
+
       // findArrayLength(storageLayout, variableName);
       if (arrayLength == null) {
         return null;
@@ -62,19 +93,31 @@ export async function readNonPrimaryDataType(
         return arrayData;
       }
 
-      for (let i = 0; i < arrLenNum; i++) {
-        // determine slot value for element i given:
-        // array slot
-        // and slotvalue: 2
-        const arrayElement = await readNonPrimaryDataType(
-          storageLayout,
-          `${variableName}[${i}]`,
-          dataTypes
+      const ethweb3 = new web3(
+        `https://polygon-mumbai.g.alchemy.com/v2/${process.env.ALCHEMY_KEY}`
+      );
+      if (arrLenNum > 0) {
+        let currentSlotAddress = web3.utils.soliditySha3(
+          ethweb3.eth.abi.encodeParameter("uint256", variableSlot)
         );
-        arrayData.push(arrayElement);
+        for (let i = 0; i < arrLenNum; i++) {
+          const valueAtSlot = getValueAtSlotAddressForArray(currentSlotAddress);
+          arrayData.push(valueAtSlot);
+          currentSlotAddress = getNextAddress(currentSlotAddress as string);
+        }
       }
-
-      return arrayData;
+      //Settle all promises
+      const finalValues = Promise.allSettled(arrayData).then((results) => {
+        const data = results.map((result) => {
+          if (result.status === "fulfilled") {
+            return result.value;
+          } else {
+            alert(result.reason);
+          }
+        });
+        return data;
+      });
+      return finalValues;
     } else {
       // For other non-primary data types, read the value from the corresponding slot
       const slotValue = await getContractStorage(variableSlot); // contractStorage[variableSlot];
@@ -213,35 +256,41 @@ const variableName = "myStruct";
 // );
 
 const getContractStorage = async (position: string) => {
-  let signer = null;
+  // // let signer = null;
+  // console.log("setttings----", settings);
+  // // let provider;
+  // // // @ts-ignore
+  // // if (window.ethereum == null) {
+  // //   // If MetaMask is not installed, we use the default provider,
+  // //   // which is backed by a variety of third-party services (such
+  // //   // as INFURA). They do not have private keys installed so are
+  // //   // only have read-only access
+  // //   console.log("MetaMask not installed; using read-only defaults");
+  // //   // provider = ethers.getDefaultProvider();
+  // // } else {
+  // //   // Connect to the MetaMask EIP-1193 object. This is a standard
+  // //   // protocol that allows Ethers access to make all read-only
+  // //   // requests through MetaMask.
+  // //   // @ts-ignore
+  // //   provider = new ethers.BrowserProvider(window.ethereum);
 
-  let provider;
-  // @ts-ignore
-  if (window.ethereum == null) {
-    // If MetaMask is not installed, we use the default provider,
-    // which is backed by a variety of third-party services (such
-    // as INFURA). They do not have private keys installed so are
-    // only have read-only access
-    console.log("MetaMask not installed; using read-only defaults");
-    // provider = ethers.getDefaultProvider();
-  } else {
-    // Connect to the MetaMask EIP-1193 object. This is a standard
-    // protocol that allows Ethers access to make all read-only
-    // requests through MetaMask.
-    // @ts-ignore
-    provider = new ethers.BrowserProvider(window.ethereum);
+  // //   // It also provides an opportunity to request access to write
+  // //   // operations, which will be performed by the private key
+  // //   // that MetaMask manages for the user.
+  // //   signer = await provider.getSigner();
+  // //   console.log("position", position);
 
-    // It also provides an opportunity to request access to write
-    // operations, which will be performed by the private key
-    // that MetaMask manages for the user.
-    signer = await provider.getSigner();
-  }
+  // //   // await provider?.getStorage(
+  // //   //   "0x2ce69C73AAFD083E703F8986f6083159a98383d6",
+  // //   //   position
+  // //   // );
+  // // }
 
-  console.log("position", position);
-  return await provider?.getStorage(
-    "0x97D80d79E6B7133C94673649781138a1C880e040",
-    position
+  const data = await alchemy.core.getStorageAt(
+    "0x2ce69C73AAFD083E703F8986f6083159a98383d6",
+    ethers.toBeHex(position)
   );
+  return parseInt(data, 16);
 };
 
 function parseValueAccordingToType(type: string, slotValue: string): any {
