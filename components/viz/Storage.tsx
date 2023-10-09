@@ -31,6 +31,7 @@ export type SlotType = {
   slot: string;
 };
 export type DataType = {
+  base?: string;
   encoding: string;
   label: string;
   numberOfBytes: string;

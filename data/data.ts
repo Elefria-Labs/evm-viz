@@ -26,3 +26,15 @@ contract Counter {
     }
 }
 `;
+
+export const sampleContract2 = `
+pragma solidity ^0.8.17;
+
+contract Counter {
+    uint public count =1 ;
+    uint[] public test;
+
+    function insert(uint value) public {
+        test.push()= value;
+    }
+}`;
