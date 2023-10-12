@@ -30,9 +30,9 @@ const getSlotAddress = (type, inputs) => {
   );
 };
 
-const getStorageAtSpecificSlot = async (slotAddress) => {
+const getStorageAtSpecificSlot = async (slotAddress, contractAddress) => {
   return await alchemy.core.getStorageAt(
-    "0x4aDBA672160B276FBa8ffB5f5A68E1528e048027",
+    contractAddress,
     slotAddress as string
   );
 };
@@ -56,6 +56,7 @@ export const getMappingValues = async (
   dataTypes = {}
 ) => {
   let delimiters = /[(,]/;
+  const contractAddress = "0x4aDBA672160B276FBa8ffB5f5A68E1528e048027";
   const mappingTypes = mappingStructure.split(delimiters);
   let hasFirstMappingFound = false;
   let currentSlot = variableSlot;
@@ -93,7 +94,10 @@ export const getMappingValues = async (
           ["t_string_storage", "t_uint256"].includes(structDataType[i]?.type)
         ) {
           if (i === 0) {
-            const data = await getStorageAtSpecificSlot(slotAddress);
+            const data = await getStorageAtSpecificSlot(
+              slotAddress,
+              contractAddress
+            );
             structValue.push({
               label: structDataType[i]?.label,
               value: convertValue(data, structDataType[i]?.type) as string,
@@ -101,7 +105,10 @@ export const getMappingValues = async (
           } else {
             const nextAddress = getNextAddress(slotAddress);
             slotAddress = nextAddress;
-            const data = await getStorageAtSpecificSlot(slotAddress);
+            const data = await getStorageAtSpecificSlot(
+              slotAddress,
+              contractAddress
+            );
             structValue.push({
               label: structDataType[i]?.label,
               value: convertValue(data, structDataType[i]?.type) as number,
