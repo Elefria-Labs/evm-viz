@@ -1,11 +1,10 @@
-import { ethers, BigNumberish, keccak256 } from "ethers";
+import { ethers, keccak256 } from "ethers";
 import { DataType, SlotType } from "./Storage";
 import { Network, Alchemy } from "alchemy-sdk";
 import web3 from "Web3";
-import BigNumber from "bignumber.js";
-//0x2ce69C73AAFD083E703F8986f6083159a98383d6
+
 const settings = {
-  apiKey: "42VDfI4iRFwnfKrATriHkQtEZmY9_vDO", // Replace with your Alchemy API Key.
+  apiKey: process.env.ALCHEMY_KEY, // Replace with your Alchemy API Key.
   network: Network.MATIC_MUMBAI, // Replace with your network.
 };
 
@@ -22,11 +21,114 @@ interface ContractStorage {
   [key: string]: string;
 }
 
-export const getNextAddress = (currentAddress: string) => {
+const getSlotAddress = (type, inputs) => {
+  const ethweb3 = new web3(
+    `https://polygon-mumbai.g.alchemy.com/v2/${process.env.ALCHEMY_KEY}`
+  );
+  return web3.utils.soliditySha3(
+    ethweb3.eth.abi.encodeParameters(type, inputs)
+  );
+};
+
+const getStorageAtSpecificSlot = async (slotAddress) => {
+  return await alchemy.core.getStorageAt(
+    "0x4aDBA672160B276FBa8ffB5f5A68E1528e048027",
+    slotAddress as string
+  );
+};
+
+const convertToString = (value) => {
+  return web3.utils.hexToString(value)?.split("\u0000")?.[0];
+};
+const convertToNumber = (value) => {
+  return web3.utils.hexToNumber(value);
+};
+
+const convertValue = (value, type) => {
+  if (type === "t_string_storage") return convertToString(value) as string;
+  if (type === "t_uint256") return convertToNumber(value) as unknown as number;
+};
+
+export const getMappingValues = async (
+  mappingStructure: string,
+  variableSlot,
+  keys,
+  dataTypes = {}
+) => {
+  let delimiters = /[(,]/;
+  const mappingTypes = mappingStructure.split(delimiters);
+  let hasFirstMappingFound = false;
+  let currentSlot = variableSlot;
+  let slotAddress;
+  let keysIndex = 0;
+  if (mappingTypes[mappingTypes.length - 2] === "t_struct") mappingTypes.pop();
+  for (let i = 0; i < mappingTypes?.length - 2; i++) {
+    if (mappingTypes[i] === "t_mapping" && !hasFirstMappingFound) {
+      hasFirstMappingFound = true;
+      slotAddress = getSlotAddress(
+        [mappingTypes[i + 1]?.split("t_")?.[1], "uint256"],
+        [keys[keysIndex], currentSlot]
+      );
+      keysIndex++;
+    } else if (mappingTypes[i] === "t_mapping") {
+      slotAddress = getSlotAddress(
+        [mappingTypes[i + 1]?.split("t_")?.[1], "uint256"],
+        [keys[keysIndex], slotAddress]
+      );
+      keysIndex++;
+    }
+  }
+
+  if (mappingTypes[mappingTypes.length - 1] === "t_struct") {
+    let delimiters = /[,]/;
+    const splitValue = mappingStructure?.split(delimiters);
+
+    const structDataType =
+      dataTypes[splitValue?.[splitValue?.length - 1]?.split("))")?.[0]]
+        ?.members;
+    if (structDataType?.length > 1) {
+      let structValue: any = [];
+      for (let i = 0; i < structDataType.length; i++) {
+        if (
+          ["t_string_storage", "t_uint256"].includes(structDataType[i]?.type)
+        ) {
+          if (i === 0) {
+            const data = await getStorageAtSpecificSlot(slotAddress);
+            structValue.push({
+              label: structDataType[i]?.label,
+              value: convertValue(data, structDataType[i]?.type) as string,
+            });
+          } else {
+            const nextAddress = getNextAddress(slotAddress);
+            slotAddress = nextAddress;
+            const data = await getStorageAtSpecificSlot(slotAddress);
+            structValue.push({
+              label: structDataType[i]?.label,
+              value: convertValue(data, structDataType[i]?.type) as number,
+            });
+          }
+        }
+      }
+      return structValue;
+    }
+  }
+
+  const value = await alchemy.core.getStorageAt(
+    "0x1C4E1d41b4A320C6a74114F9dD3756Fb720275C1",
+    slotAddress as string
+  );
+  //[TODO] Need to check the type  of the value to convert data to into readable format
+  //[TODO] Support for other types like byte
+  //[TODO] Handling slot value which are packed together in one slot
+  console.log("value---", web3.utils.hexToNumber(value));
+  return value;
+};
+
+export const getNextAddress = (currentAddress: string, move = 1) => {
   const currentAddressNumber = BigInt(currentAddress); // Convert the address to a BigInt
 
   // Increment the address by 1
-  const nextAddressNumber = currentAddressNumber + BigInt(1);
+  const nextAddressNumber = currentAddressNumber + BigInt(move);
 
   // Convert the next address back to a hexadecimal string
   const nextAddress = "0x" + nextAddressNumber.toString(16);
@@ -39,6 +141,7 @@ export const getValueAtSlotAddressForArray = async (address) => {
     "0x2ce69C73AAFD083E703F8986f6083159a98383d6",
     address as string
   );
+  console.log("arraySlotValue---", arraySlotValue);
   return web3.utils.hexToNumber(arraySlotValue);
 };
 
@@ -49,6 +152,13 @@ export async function readNonPrimaryDataType(
   varSlot?: string,
   isElement: boolean = false
 ): Promise<any> {
+  const data = getMappingValues(
+    "t_mapping(t_uint256,t_mapping(t_address,t_struct(Person)47_storage))",
+    7,
+    [2, "0x8B20814C182DbF6687957A80C4fCD9e6f10f05B9"],
+    dataTypes
+  );
+
   const variableSlot =
     varSlot ?? findSlotForVariable(storageLayout, variableName);
   console.log({ storageLayout });
