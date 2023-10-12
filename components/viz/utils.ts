@@ -121,7 +121,7 @@ export const getMappingValues = async (
   }
 
   const value = await alchemy.core.getStorageAt(
-    "0x1C4E1d41b4A320C6a74114F9dD3756Fb720275C1",
+    contractAddress,
     slotAddress as string
   );
   //[TODO] Need to check the type  of the value to convert data to into readable format
