@@ -15,6 +15,8 @@ import {
   AccordionIcon,
   AccordionPanel,
   Container,
+  Input,
+  Checkbox,
 } from "@chakra-ui/react";
 import type { NextPage } from "next";
 import Head from "next/head";
@@ -35,6 +37,8 @@ const Home: NextPage = () => {
   const [sourceCode, setSourceCode] = useState(sampleContract2);
   const [byteCode, setByteCode] = useState("");
   const [abi, setAbi] = useState("");
+  const [smartContractAddr, setSmartContractAddr] = useState<string>("");
+  const [useOnChainAddr, setUseOnChainAddr] = useState<bool>(false);
   const [storageLayout, setStorageLayout] = useState<SlotType[]>();
   const [dataTypes, setDataTypes] = useState<Record<string, DataType>>();
   const [highlightedCells, setHighlightedCells] = useState<number[]>([]);
@@ -79,6 +83,9 @@ const Home: NextPage = () => {
 
   console.log("storageLayout", storageLayout);
   console.log("dataTypes", dataTypes);
+  const onSmartContractAddr = (value: string) => {
+    setSmartContractAddr(value);
+  };
   const highlightedByteCode = () => {
     if (byteCode == null || !byteCode.length) {
       return;
@@ -143,23 +150,42 @@ const Home: NextPage = () => {
                     <Flex>
                       <Card>
                         <CardBody>
-                          <Heading size={"md"} mb={4}>
-                            Source Code
-                          </Heading>
-                          <Textarea
-                            rows={20}
-                            cols={100}
-                            onChange={(e) => setSourceCode(e.target.value)}
-                            defaultValue={sourceCode}
-                          />
-                          <Button
-                            colorScheme="teal"
-                            size="sm"
-                            my="4px"
-                            onClick={compileSourceCode}
-                          >
-                            Compile
-                          </Button>
+                          <Flex flexDirection={"column"}>
+                            <Heading size={"md"} mb={4}>
+                              Source Code
+                            </Heading>
+                            <Textarea
+                              rows={20}
+                              cols={100}
+                              onChange={(e) => setSourceCode(e.target.value)}
+                              defaultValue={sourceCode}
+                            />
+                            <Checkbox
+                              my={2}
+                              onChange={(e) =>
+                                setUseOnChainAddr(e.target.checked)
+                              }
+                            >
+                              Use on-chain address
+                            </Checkbox>
+                            {useOnChainAddr && (
+                              <Input
+                                mb={2}
+                                onChange={(e) =>
+                                  onSmartContractAddr(e.target.value)
+                                }
+                                placeholder="0xaaad12312....."
+                              />
+                            )}
+                            <Button
+                              colorScheme="teal"
+                              size="sm"
+                              my="4px"
+                              onClick={compileSourceCode}
+                            >
+                              Compile
+                            </Button>
+                          </Flex>
                         </CardBody>
                       </Card>
                     </Flex>
