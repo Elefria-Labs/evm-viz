@@ -38,7 +38,7 @@ const Home: NextPage = () => {
   const [byteCode, setByteCode] = useState("");
   const [abi, setAbi] = useState("");
   const [smartContractAddr, setSmartContractAddr] = useState<string>("");
-  const [useOnChainAddr, setUseOnChainAddr] = useState<bool>(false);
+  const [useOnChainAddr, setUseOnChainAddr] = useState<boolean>(false);
   const [storageLayout, setStorageLayout] = useState<SlotType[]>();
   const [dataTypes, setDataTypes] = useState<Record<string, DataType>>();
   const [highlightedCells, setHighlightedCells] = useState<number[]>([]);
