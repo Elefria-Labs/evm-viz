@@ -33,14 +33,23 @@ pragma solidity ^0.8.0;
 
 
 contract counter {
+    address public test = 0x8B20814C182DbF6687957A80C4fCD9e6f10f05B9;
+    uint8 public test2 = 2;
+    uint8 public test3=3;
+    uint32 public test6=2;
+    uint8 public test4=4;
+    uint16 public test5=23;
+    bytes32 a = "carter";
     uint public count = 10;
     uint private max = 20;
     uint[] public arr;
     uint[][] public multipleArr;
+    uint[][][] public nestedArray = [[[1,2],[3,4]],[[5,6],[7,8]]];
     mapping(uint => string) public mapWithString;
     mapping(uint => uint) public map;
     mapping(uint => mapping(address => uint)) public mapWithAddress;
     mapping(uint => mapping(address => Person)) public mapWithStruct;
+    
     struct Person {
         string name;
         uint age;
@@ -61,12 +70,12 @@ contract counter {
     function addMapping(uint key, uint value) external {
         map[key] = value;
     }
-    function structMapping(address _key, uint _keyValue, string memory _name, uint _value, uint[] memory _cartype) external {
+    function structMapping(address _key, uint _keyValue, string memory _name, uint _value, uint256 _cartype) external {
     Person storage person = mapWithStruct[_keyValue][_key];
     person.name = _name;
     person.age = _value;
     person.structMap[_keyValue] = _value;
-    person.cartype = _cartype;
+    person.cartype.push(_cartype);
     }
     function setPerson(string memory _name, uint _age) public {
         PersonalData.name = _name;

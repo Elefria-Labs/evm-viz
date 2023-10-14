@@ -24,3 +24,20 @@ export const Links = {
 
 export const repoLink = "https://github.com/heypran/zk-block";
 export const zkToosLink = "https://github.com/heypran/zk-tools";
+
+export const solidityDataTypes = {
+  bool: 1,
+  uint8: 1,
+  int8: 1,
+  uint16: 2,
+  int16: 2,
+  uint32: 4,
+  int32: 4,
+  uint64: 8,
+  int64: 8,
+  uint128: 16,
+  int128: 16,
+  uint256: 32,
+  int256: 32,
+  address: 20,
+};

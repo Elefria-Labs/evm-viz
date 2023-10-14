@@ -2,12 +2,15 @@ import { ethers, keccak256 } from "ethers";
 import { DataType, SlotType } from "./Storage";
 import { Network, Alchemy } from "alchemy-sdk";
 import web3 from "Web3";
+import { solidityDataTypes } from "../../config/constants";
 
 const settings = {
   apiKey: process.env.ALCHEMY_KEY, // Replace with your Alchemy API Key.
   network: Network.MATIC_MUMBAI, // Replace with your network.
 };
-
+const ethweb3 = new web3(
+  `https://polygon-mumbai.g.alchemy.com/v2/${process.env.ALCHEMY_KEY}`
+);
 const alchemy = new Alchemy(settings);
 
 export interface StorageLayoutEntry {
@@ -37,16 +40,152 @@ const getStorageAtSpecificSlot = async (slotAddress, contractAddress) => {
   );
 };
 
+const getStorageAtSpecificSlotTest = async (
+  slotPosition,
+  contractAddress,
+  types
+) => {
+  let storageData = await alchemy.core.getStorageAt(
+    contractAddress,
+    web3.utils.toHex(slotPosition)
+  );
+
+  const hexString = storageData.replace("0x", "");
+  let slotValues: (string | number)[] = [];
+  let sliceStart = 64;
+  let sliceEnd = 64;
+  for (let i = 0; i < types.length - 1; i++) {
+    const bytesToSlice = solidityDataTypes[types[i]] * 2;
+    sliceStart -= bytesToSlice;
+    const currentTypeData = hexString.slice(sliceStart, sliceEnd);
+    sliceEnd = sliceStart;
+    if (types[i] === "address") slotValues.push(`0x${currentTypeData}`);
+    else
+      slotValues.push(
+        convertToNumber(`0x${currentTypeData}`) as unknown as number
+      );
+  }
+  return slotValues;
+};
+
+const getData = async (storageLayout, contractAddress, slotIndex) => {
+  const types = storageLayout?.reduce((acc, curr, index) => {
+    if (curr?.slot === String(slotIndex)) {
+      acc[index] = curr?.type.split("t_")?.[1];
+    }
+    return acc;
+  }, []);
+
+  const data = await getStorageAtSpecificSlotTest(
+    slotIndex,
+    contractAddress,
+    types
+  );
+  return data;
+};
+
 const convertToString = (value) => {
   return web3.utils.hexToString(value)?.split("\u0000")?.[0];
 };
-const convertToNumber = (value) => {
-  return web3.utils.hexToNumber(value);
+const convertToNumber = (value): number => {
+  return web3.utils.hexToNumber(value) as number;
 };
 
 const convertValue = (value, type) => {
   if (type === "t_string_storage") return convertToString(value) as string;
   if (type === "t_uint256") return convertToNumber(value) as unknown as number;
+};
+
+const resolveArrayPromises = (array) => {
+  return Promise.allSettled(array).then((results) => {
+    const data = results.map((result) => {
+      if (result.status === "fulfilled") {
+        return result.value;
+      } else {
+        console.log(result.reason);
+        return [];
+      }
+    });
+    return data ?? [];
+  });
+};
+
+const getNestedArrayValues = async (
+  type,
+  variableSlot,
+  contractAddress,
+  nestedArrayLength
+) => {
+  const arrayLength = convertToNumber(
+    await getStorageAtSpecificSlot(variableSlot, contractAddress)
+  );
+
+  if (arrayLength < 1) return [];
+  let currentVariableSlot = web3.utils.soliditySha3(
+    ethweb3.eth.abi.encodeParameter("uint256", variableSlot)
+  );
+
+  if (nestedArrayLength > 0) {
+    let arrayValue: any[] = [];
+    for (let i = 0; i < arrayLength; i++) {
+      arrayValue[i] = getNestedArrayValues(
+        type,
+        currentVariableSlot,
+        contractAddress,
+        nestedArrayLength - 1
+      );
+
+      currentVariableSlot = getNextAddress(currentVariableSlot as string);
+    }
+    return resolveArrayPromises(arrayValue);
+  } else {
+    const arrayLength = convertToNumber(
+      await getStorageAtSpecificSlot(variableSlot, contractAddress)
+    );
+    if (!arrayLength) return [];
+    let arrayData: (number | bigint)[] = [];
+    for (let i = 0; i < arrayLength; i++) {
+      const valueAtSlot: number | bigint = await getValueAtSlotAddressForArray(
+        currentVariableSlot,
+        contractAddress
+      );
+      arrayData.push(valueAtSlot);
+      currentVariableSlot = getNextAddress(currentVariableSlot as string);
+    }
+    return resolveArrayPromises(arrayData);
+  }
+};
+
+export const getArrayValues = async (variableSlot, type, contractAddress) => {
+  const nestedArrayLength = type
+    ?.split("(")
+    ?.filter((val) => val === "t_array")?.length;
+
+  if (nestedArrayLength > 1) {
+    const finalData = await getNestedArrayValues(
+      "array",
+      variableSlot,
+      contractAddress,
+      nestedArrayLength - 1
+    );
+    console.log("finalData====", finalData);
+    return finalData;
+  } else {
+    let arrayData: (number | bigint)[] = [];
+    const arrayLength = convertToNumber(
+      await getStorageAtSpecificSlot(variableSlot, contractAddress)
+    );
+    let currentVariableSlot = variableSlot;
+    for (let i = 0; i < arrayLength; i++) {
+      const valueAtSlot: number | bigint = await getValueAtSlotAddressForArray(
+        currentVariableSlot,
+        contractAddress
+      );
+      arrayData.push(valueAtSlot);
+      currentVariableSlot = getNextAddress(currentVariableSlot as string);
+    }
+    return resolveArrayPromises(arrayData);
+  }
 };
 
 export const getMappingValues = async (
@@ -116,7 +255,6 @@ export const getMappingValues = async (
           }
         }
       }
-      return structValue;
     }
   }
 
@@ -126,7 +264,6 @@ export const getMappingValues = async (
   );
   //[TODO] Need to check the type  of the value to convert data to into readable format
   //[TODO] Support for other types like byte
-  //[TODO] Handling slot value which are packed together in one slot
   console.log("value---", web3.utils.hexToNumber(value));
   return value;
 };
@@ -143,12 +280,14 @@ export const getNextAddress = (currentAddress: string, move = 1) => {
   return nextAddress;
 };
 
-export const getValueAtSlotAddressForArray = async (address) => {
+export const getValueAtSlotAddressForArray = async (
+  address,
+  contractAddress
+) => {
   const arraySlotValue = await alchemy.core.getStorageAt(
-    "0x2ce69C73AAFD083E703F8986f6083159a98383d6",
+    contractAddress,
     address as string
   );
-  console.log("arraySlotValue---", arraySlotValue);
   return web3.utils.hexToNumber(arraySlotValue);
 };
 
@@ -159,13 +298,19 @@ export async function readNonPrimaryDataType(
   varSlot?: string,
   isElement: boolean = false
 ): Promise<any> {
-  const data = getMappingValues(
-    "t_mapping(t_uint256,t_mapping(t_address,t_struct(Person)47_storage))",
-    7,
-    [2, "0x8B20814C182DbF6687957A80C4fCD9e6f10f05B9"],
-    dataTypes
+  getArrayValues(
+    4,
+    "t_array(t_uint256)dyn_storage",
+    "0x52C3989fBe21979cB158518dA71DfDCCc79F9347"
   );
-
+  // const data = getMappingValues(
+  //   "t_mapping(t_uint256,t_mapping(t_address,t_struct(Person)47_storage))",
+  //   7,
+  //   [1, "0x8B20814C182DbF6687957A80C4fCD9e6f10f05B9"],
+  //   dataTypes
+  // );
+  // getData(storageLayout, "0x7abFF3DC3284807339154CFE8D31eaF152765303", 0);
+  return;
   const variableSlot =
     varSlot ?? findSlotForVariable(storageLayout, variableName);
   console.log({ storageLayout });
@@ -196,45 +341,6 @@ export async function readNonPrimaryDataType(
 
       return structData;
     } else if (variableType.includes("array") && !isElement) {
-      // If the variable is an array, read each element separately
-      const arrayLength = await getContractStorage(variableSlot);
-
-      // findArrayLength(storageLayout, variableName);
-      if (arrayLength == null) {
-        return null;
-      }
-      const arrLenNum = Number(ethers.toBigInt(arrayLength));
-      const arrayData: any[] = [];
-
-      if (arrLenNum === 0) {
-        return arrayData;
-      }
-
-      const ethweb3 = new web3(
-        `https://polygon-mumbai.g.alchemy.com/v2/${process.env.ALCHEMY_KEY}`
-      );
-      if (arrLenNum > 0) {
-        let currentSlotAddress = web3.utils.soliditySha3(
-          ethweb3.eth.abi.encodeParameter("uint256", variableSlot)
-        );
-        for (let i = 0; i < arrLenNum; i++) {
-          const valueAtSlot = getValueAtSlotAddressForArray(currentSlotAddress);
-          arrayData.push(valueAtSlot);
-          currentSlotAddress = getNextAddress(currentSlotAddress as string);
-        }
-      }
-      //Settle all promises
-      const finalValues = Promise.allSettled(arrayData).then((results) => {
-        const data = results.map((result) => {
-          if (result.status === "fulfilled") {
-            return result.value;
-          } else {
-            alert(result.reason);
-          }
-        });
-        return data;
-      });
-      return finalValues;
     } else {
       // For other non-primary data types, read the value from the corresponding slot
       const slotValue = await getContractStorage(variableSlot); // contractStorage[variableSlot];
