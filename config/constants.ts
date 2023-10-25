@@ -4,10 +4,10 @@ export const twitterLink = "https://twitter.com/zk_block";
 const baseUrl = "https://www.zkblock.app/";
 export const Links = {
   home: baseUrl,
-  tools: baseUrl,
   boilerplate: "https://boilerplate.zkblock.app/",
   blog: "https://blog.zkblock.app/",
   zkChains: `${baseUrl}zk-networks`,
+  zkTools: `${baseUrl}zk-tools`,
   contribute: `${baseUrl}contribute`,
   playgrounds: `${baseUrl}playgrounds`,
   eip712: `${baseUrl}eip712`,
@@ -20,6 +20,7 @@ export const Links = {
   merkleTreeGenerator: `${baseUrl}merkletree-generator`,
   about: `${baseUrl}about`,
   subscribe: `${baseUrl}subscribe`,
+  evm: "https://evm.zkblock.app/",
 };
 
 export const repoLink = "https://github.com/heypran/zk-block";
