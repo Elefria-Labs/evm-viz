@@ -126,7 +126,6 @@ class ContractHelperBase {
     slotPosition: string,
     types: string[]
   ): Promise<(string | number)[]> {
-    console.log("Web3.utils", Web3.utils.toHex(slotPosition));
     const storageData = await this.getStorageAtSpecificSlot(
       Number(slotPosition)
     );
