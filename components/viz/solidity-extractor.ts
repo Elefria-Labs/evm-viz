@@ -114,7 +114,6 @@ class ContractHelperBase {
   }
 
   public getValue(currentType, currentTypeData) {
-    if (currentType.includes("mapping")) return "";
     if (currentType.includes("address")) return currentTypeData;
     else if (currentType.includes("string") || currentType.includes("bytes"))
       return this.convertToString?.(currentTypeData);
