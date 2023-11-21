@@ -51,12 +51,6 @@ class ContractHelperBase {
       );
       signer = provider.getSigner().then((signer) => signer);
       return { provider, signer };
-
-      // const data = await provider?.getStorage(
-      //   "0x7706566ACc3091911fc7da2EaBDD06116038AD6a",
-      //   position
-      // );
-      // console.log("data", data);
     }
   }
 
