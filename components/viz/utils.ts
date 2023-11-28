@@ -1,17 +1,7 @@
 import { ethers, keccak256 } from "ethers";
 import { DataType, SlotType } from "./Storage";
-import { Network, Alchemy } from "alchemy-sdk";
-import web3 from "Web3";
-import { solidityDataTypes } from "../../config/constants";
-
-const settings = {
-  apiKey: process.env.ALCHEMY_KEY, // Replace with your Alchemy API Key.
-  network: Network.MATIC_MUMBAI, // Replace with your network.
-};
-const ethweb3 = new web3(
-  `https://polygon-mumbai.g.alchemy.com/v2/${process.env.ALCHEMY_KEY}`
-);
-const alchemy = new Alchemy(settings);
+import { Network } from "alchemy-sdk";
+import { SolidityExtractor } from "./solidity-extractor";
 
 export interface StorageLayoutEntry {
   slot: string; // The storage slot in hex format (e.g., "0x0")
@@ -20,277 +10,6 @@ export interface StorageLayoutEntry {
   size: number; // The size in bytes of the variable's storage space
 }
 
-interface ContractStorage {
-  [key: string]: string;
-}
-
-const getSlotAddress = (type, inputs) => {
-  const ethweb3 = new web3(
-    `https://polygon-mumbai.g.alchemy.com/v2/${process.env.ALCHEMY_KEY}`
-  );
-  return web3.utils.soliditySha3(
-    ethweb3.eth.abi.encodeParameters(type, inputs)
-  );
-};
-
-const getStorageAtSpecificSlot = async (slotAddress, contractAddress) => {
-  return await alchemy.core.getStorageAt(
-    contractAddress,
-    slotAddress as string
-  );
-};
-
-const getStorageAtSpecificSlotTest = async (
-  slotPosition,
-  contractAddress,
-  types
-) => {
-  let storageData = await alchemy.core.getStorageAt(
-    contractAddress,
-    web3.utils.toHex(slotPosition)
-  );
-
-  const hexString = storageData.replace("0x", "");
-  let slotValues: (string | number)[] = [];
-  let sliceStart = 64;
-  let sliceEnd = 64;
-  for (let i = 0; i < types.length - 1; i++) {
-    const bytesToSlice = solidityDataTypes[types[i]] * 2;
-    sliceStart -= bytesToSlice;
-    const currentTypeData = hexString.slice(sliceStart, sliceEnd);
-    sliceEnd = sliceStart;
-    if (types[i] === "address") slotValues.push(`0x${currentTypeData}`);
-    else
-      slotValues.push(
-        convertToNumber(`0x${currentTypeData}`) as unknown as number
-      );
-  }
-  return slotValues;
-};
-
-const getData = async (storageLayout, contractAddress, slotIndex) => {
-  const types = storageLayout?.reduce((acc, curr, index) => {
-    if (curr?.slot === String(slotIndex)) {
-      acc[index] = curr?.type.split("t_")?.[1];
-    }
-    return acc;
-  }, []);
-
-  const data = await getStorageAtSpecificSlotTest(
-    slotIndex,
-    contractAddress,
-    types
-  );
-  return data;
-};
-
-const convertToString = (value) => {
-  return web3.utils.hexToString(value)?.split("\u0000")?.[0];
-};
-const convertToNumber = (value): number => {
-  return web3.utils.hexToNumber(value) as number;
-};
-
-const convertValue = (value, type) => {
-  if (type === "t_string_storage") return convertToString(value) as string;
-  if (type === "t_uint256") return convertToNumber(value) as unknown as number;
-};
-
-const resolveArrayPromises = (array) => {
-  return Promise.allSettled(array).then((results) => {
-    const data = results.map((result) => {
-      if (result.status === "fulfilled") {
-        return result.value;
-      } else {
-        console.log(result.reason);
-        return [];
-      }
-    });
-    return data ?? [];
-  });
-};
-
-const getNestedArrayValues = async (
-  type,
-  variableSlot,
-  contractAddress,
-  nestedArrayLength
-) => {
-  const arrayLength = convertToNumber(
-    await getStorageAtSpecificSlot(variableSlot, contractAddress)
-  );
-
-  if (arrayLength < 1) return [];
-  let currentVariableSlot = web3.utils.soliditySha3(
-    ethweb3.eth.abi.encodeParameter("uint256", variableSlot)
-  );
-
-  if (nestedArrayLength > 0) {
-    let arrayValue: any[] = [];
-    for (let i = 0; i < arrayLength; i++) {
-      arrayValue[i] = getNestedArrayValues(
-        type,
-        currentVariableSlot,
-        contractAddress,
-        nestedArrayLength - 1
-      );
-
-      currentVariableSlot = getNextAddress(currentVariableSlot as string);
-    }
-    return resolveArrayPromises(arrayValue);
-  } else {
-    const arrayLength = convertToNumber(
-      await getStorageAtSpecificSlot(variableSlot, contractAddress)
-    );
-    if (!arrayLength) return [];
-    let arrayData: (number | bigint)[] = [];
-    for (let i = 0; i < arrayLength; i++) {
-      const valueAtSlot: number | bigint = await getValueAtSlotAddressForArray(
-        currentVariableSlot,
-        contractAddress
-      );
-      arrayData.push(valueAtSlot);
-      currentVariableSlot = getNextAddress(currentVariableSlot as string);
-    }
-    return resolveArrayPromises(arrayData);
-  }
-};
-
-export const getArrayValues = async (variableSlot, type, contractAddress) => {
-  const nestedArrayLength = type
-    ?.split("(")
-    ?.filter((val) => val === "t_array")?.length;
-
-  if (nestedArrayLength > 1) {
-    const finalData = await getNestedArrayValues(
-      "array",
-      variableSlot,
-      contractAddress,
-      nestedArrayLength - 1
-    );
-    console.log("finalData====", finalData);
-    return finalData;
-  } else {
-    let arrayData: (number | bigint)[] = [];
-    const arrayLength = convertToNumber(
-      await getStorageAtSpecificSlot(variableSlot, contractAddress)
-    );
-    let currentVariableSlot = variableSlot;
-    for (let i = 0; i < arrayLength; i++) {
-      const valueAtSlot: number | bigint = await getValueAtSlotAddressForArray(
-        currentVariableSlot,
-        contractAddress
-      );
-      arrayData.push(valueAtSlot);
-      currentVariableSlot = getNextAddress(currentVariableSlot as string);
-    }
-    return resolveArrayPromises(arrayData);
-  }
-};
-
-export const getMappingValues = async (
-  mappingStructure: string,
-  variableSlot,
-  keys,
-  dataTypes = {}
-) => {
-  let delimiters = /[(,]/;
-  const contractAddress = "0x4aDBA672160B276FBa8ffB5f5A68E1528e048027";
-  const mappingTypes = mappingStructure.split(delimiters);
-  let hasFirstMappingFound = false;
-  let currentSlot = variableSlot;
-  let slotAddress;
-  let keysIndex = 0;
-  if (mappingTypes[mappingTypes.length - 2] === "t_struct") mappingTypes.pop();
-  for (let i = 0; i < mappingTypes?.length - 2; i++) {
-    if (mappingTypes[i] === "t_mapping" && !hasFirstMappingFound) {
-      hasFirstMappingFound = true;
-      slotAddress = getSlotAddress(
-        [mappingTypes[i + 1]?.split("t_")?.[1], "uint256"],
-        [keys[keysIndex], currentSlot]
-      );
-      keysIndex++;
-    } else if (mappingTypes[i] === "t_mapping") {
-      slotAddress = getSlotAddress(
-        [mappingTypes[i + 1]?.split("t_")?.[1], "uint256"],
-        [keys[keysIndex], slotAddress]
-      );
-      keysIndex++;
-    }
-  }
-
-  if (mappingTypes[mappingTypes.length - 1] === "t_struct") {
-    let delimiters = /[,]/;
-    const splitValue = mappingStructure?.split(delimiters);
-
-    const structDataType =
-      dataTypes[splitValue?.[splitValue?.length - 1]?.split("))")?.[0]]
-        ?.members;
-    if (structDataType?.length > 1) {
-      let structValue: any = [];
-      for (let i = 0; i < structDataType.length; i++) {
-        if (
-          ["t_string_storage", "t_uint256"].includes(structDataType[i]?.type)
-        ) {
-          if (i === 0) {
-            const data = await getStorageAtSpecificSlot(
-              slotAddress,
-              contractAddress
-            );
-            structValue.push({
-              label: structDataType[i]?.label,
-              value: convertValue(data, structDataType[i]?.type) as string,
-            });
-          } else {
-            const nextAddress = getNextAddress(slotAddress);
-            slotAddress = nextAddress;
-            const data = await getStorageAtSpecificSlot(
-              slotAddress,
-              contractAddress
-            );
-            structValue.push({
-              label: structDataType[i]?.label,
-              value: convertValue(data, structDataType[i]?.type) as number,
-            });
-          }
-        }
-      }
-    }
-  }
-
-  const value = await alchemy.core.getStorageAt(
-    contractAddress,
-    slotAddress as string
-  );
-  //[TODO] Need to check the type  of the value to convert data to into readable format
-  //[TODO] Support for other types like byte
-  console.log("value---", web3.utils.hexToNumber(value));
-  return value;
-};
-
-export const getNextAddress = (currentAddress: string, move = 1) => {
-  const currentAddressNumber = BigInt(currentAddress); // Convert the address to a BigInt
-
-  // Increment the address by 1
-  const nextAddressNumber = currentAddressNumber + BigInt(move);
-
-  // Convert the next address back to a hexadecimal string
-  const nextAddress = "0x" + nextAddressNumber.toString(16);
-
-  return nextAddress;
-};
-
-export const getValueAtSlotAddressForArray = async (
-  address,
-  contractAddress
-) => {
-  const arraySlotValue = await alchemy.core.getStorageAt(
-    contractAddress,
-    address as string
-  );
-  return web3.utils.hexToNumber(arraySlotValue);
-};
-
 export async function readNonPrimaryDataType(
   storageLayout: SlotType[],
   variableName: string,
@@ -298,17 +17,37 @@ export async function readNonPrimaryDataType(
   varSlot?: string,
   isElement: boolean = false
 ): Promise<any> {
-  getArrayValues(
-    4,
-    "t_array(t_uint256)dyn_storage",
-    "0x52C3989fBe21979cB158518dA71DfDCCc79F9347"
+  console.log("process.env.ALCHEMY_KEY ---", process.env.ALCHEMY_KEY);
+  const contractAddress = "0x7706566ACc3091911fc7da2EaBDD06116038AD6a";
+  const alchemyConfig = {
+    apiKey: process.env.ALCHEMY_KEY as string,
+    network: Network.MATIC_MUMBAI,
+  };
+
+  const contractHelper = new SolidityExtractor(
+    contractAddress,
+    alchemyConfig,
+    storageLayout,
+    dataTypes
+    // "https://localhost:8545" // this is giving error
   );
-  // const data = getMappingValues(
-  //   "t_mapping(t_uint256,t_mapping(t_address,t_struct(Person)47_storage))",
-  //   7,
-  //   [1, "0x8B20814C182DbF6687957A80C4fCD9e6f10f05B9"],
-  //   dataTypes
+
+  // getContractStorage(0);
+
+  // const data = await contractHelper.getMappingValues("10", [
+  //   "2",
+  //   "0x8B20814C182DbF6687957A80C4fCD9e6f10f05B9",
+  // ]);
+
+  const data = await contractHelper.getAllSlotValues();
+
+  // const data = await getMappingValues(
+  //   "t_mapping(t_uint256,t_mapping(t_address,t_struct(Person)88_storage))",
+  //   10,
+  //   [2, "0x8B20814C182DbF6687957A80C4fCD9e6f10f05B9"],
+  //   dataTypes  xz`
   // );
+  console.log("Data----", data);
   // getData(storageLayout, "0x7abFF3DC3284807339154CFE8D31eaF152765303", 0);
   return;
   const variableSlot =
@@ -479,41 +218,38 @@ const variableName = "myStruct";
 // );
 
 const getContractStorage = async (position: string) => {
-  // // let signer = null;
-  // console.log("setttings----", settings);
-  // // let provider;
-  // // // @ts-ignore
-  // // if (window.ethereum == null) {
-  // //   // If MetaMask is not installed, we use the default provider,
-  // //   // which is backed by a variety of third-party services (such
-  // //   // as INFURA). They do not have private keys installed so are
-  // //   // only have read-only access
-  // //   console.log("MetaMask not installed; using read-only defaults");
-  // //   // provider = ethers.getDefaultProvider();
-  // // } else {
-  // //   // Connect to the MetaMask EIP-1193 object. This is a standard
-  // //   // protocol that allows Ethers access to make all read-only
-  // //   // requests through MetaMask.
-  // //   // @ts-ignore
-  // //   provider = new ethers.BrowserProvider(window.ethereum);
-
-  // //   // It also provides an opportunity to request access to write
-  // //   // operations, which will be performed by the private key
-  // //   // that MetaMask manages for the user.
-  // //   signer = await provider.getSigner();
-  // //   console.log("position", position);
-
-  // //   // await provider?.getStorage(
-  // //   //   "0x2ce69C73AAFD083E703F8986f6083159a98383d6",
-  // //   //   position
-  // //   // );
-  // // }
-
-  const data = await alchemy.core.getStorageAt(
-    "0x2ce69C73AAFD083E703F8986f6083159a98383d6",
-    ethers.toBeHex(position)
-  );
-  return parseInt(data, 16);
+  // let signer = null;
+  // let provider;
+  // // @ts-ignore
+  // if (window.ethereum == null) {
+  //   // If MetaMask is not installed, we use the default provider,
+  //   // which is backed by a variety of third-party services (such
+  //   // as INFURA). They do not have private keys installed so are
+  //   // only have read-only access
+  //   console.log("MetaMask not installed; using read-only defaults");
+  //   // provider = ethers.getDefaultProvider();
+  // } else {
+  //   // Connect to the MetaMask EIP-1193 object. This is a standard
+  //   // protocol that allows Ethers access to make all read-only
+  //   // requests through MetaMask.
+  //   // @ts-ignore
+  //   provider = new ethers.BrowserProvider(window.ethereum);
+  //   // It also provides an opportunity to request access to write
+  //   // operations, which will be performed by the private key
+  //   // that MetaMask manages for the user.
+  //   signer = await provider.getSigner();
+  //   const data = await provider?.getStorage(
+  //     "0x7706566ACc3091911fc7da2EaBDD06116038AD6a",
+  //     position
+  //   );
+  //   console.log("data", data);
+  // }
+  // console.log("position---", ethers.toBeHex(position));
+  // const data = await alchemy.core.getStorageAt(
+  //   "0x7706566ACc3091911fc7da2EaBDD06116038AD6a",
+  //   ethers.toBeHex(position)
+  // );
+  // return parseInt(data, 16);
 };
 
 function parseValueAccordingToType(type: string, slotValue: string): any {
