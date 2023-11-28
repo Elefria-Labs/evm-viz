@@ -1,7 +1,8 @@
 import { ethers, keccak256 } from "ethers";
 import { DataType, SlotType } from "./Storage";
-import { Network } from "alchemy-sdk";
+
 import { SolidityExtractor } from "./solidity-extractor";
+import { alchemyConfig } from "../../config/constants";
 
 export interface StorageLayoutEntry {
   slot: string; // The storage slot in hex format (e.g., "0x0")
@@ -17,19 +18,13 @@ export async function readNonPrimaryDataType(
   varSlot?: string,
   isElement: boolean = false
 ): Promise<any> {
-  console.log("process.env.ALCHEMY_KEY ---", process.env.ALCHEMY_KEY);
   const contractAddress = "0x7706566ACc3091911fc7da2EaBDD06116038AD6a";
-  const alchemyConfig = {
-    apiKey: process.env.ALCHEMY_KEY as string,
-    network: Network.MATIC_MUMBAI,
-  };
 
   const contractHelper = new SolidityExtractor(
     contractAddress,
     alchemyConfig,
     storageLayout,
     dataTypes
-    // "https://localhost:8545" // this is giving error
   );
 
   // getContractStorage(0);

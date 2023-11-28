@@ -1,3 +1,6 @@
+import { Network } from "alchemy-sdk";
+import { mainnet, polygonMumbai } from "viem/chains";
+
 export const githubLink = "https://github.com/heypran/zk-block";
 export const twitterLink = "https://twitter.com/zk_block";
 
@@ -42,3 +45,10 @@ export const solidityDataTypes = {
   int256: 32,
   address: 20,
 };
+
+export const alchemyConfig = {
+  apiKey: process.env.ALCHEMY_KEY as string,
+  network: Network.MATIC_MUMBAI,
+};
+
+export const SupportedChains = [polygonMumbai];

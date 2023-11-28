@@ -1,8 +1,10 @@
 import { Network, Alchemy } from "alchemy-sdk";
-import { Eip1193Provider, ethers } from "ethers";
+import { AddressLike, Eip1193Provider, ethers } from "ethers";
 import Web3 from "Web3";
 import { solidityDataTypes } from "../../config/constants";
 import { DataType, SlotType } from "./Storage";
+import { createPublicClient, http, toHex } from "viem";
+import { polygonMumbai } from "viem/chains";
 
 declare global {
   interface Window {
@@ -18,6 +20,12 @@ class ContractHelperBase {
   protected alchemy: Alchemy;
   protected defaultProvider: any;
   protected providerUrl: string | undefined;
+
+  protected client = createPublicClient({
+    chain: polygonMumbai,
+    // TODO custom transport
+    transport: http(),
+  });
 
   constructor(
     contractAddress: string,
@@ -105,12 +113,19 @@ class ContractHelperBase {
   public async getStorageAtSpecificSlot(
     slotAddress: string | number
   ): Promise<string> {
-    return this.defaultProvider
-      ? this.getContractStorage()?.provider?.getStorage(
-          this.contractAddress,
-          slotAddress
-        )
-      : this.alchemy.core.getStorageAt(this.contractAddress, slotAddress);
+    const data = await this.client.getStorageAt({
+      address: `0x${this.contractAddress.split("x")?.[1]}`,
+      slot: toHex(slotAddress),
+    });
+    // TODO better error handling
+    return data?.toString() ?? "";
+
+    // return this.defaultProvider
+    //   ? this.getContractStorage()?.provider?.getStorage(
+    //       this.contractAddress,
+    //       slotAddress
+    //     )
+    //   : this.alchemy.core.getStorageAt(this.contractAddress, slotAddress);
   }
 
   public getValue(currentType, currentTypeData) {
