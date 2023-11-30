@@ -16,6 +16,7 @@ import { DataType, SlotType } from "../viz/Storage";
 export type StorageLayoutPropsType = {
   storageLayout: SlotType[];
   types: Record<string, DataType>;
+  slotValues: any[];
 };
 export function StorageLayout(props: StorageLayoutPropsType) {
   return (

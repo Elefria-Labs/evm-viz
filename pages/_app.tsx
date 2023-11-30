@@ -1,4 +1,5 @@
 import "../styles/globals.css";
+import "react-json-view-lite/dist/index.css";
 import type { AppProps } from "next/app";
 import { ChakraProvider } from "@chakra-ui/react";
 

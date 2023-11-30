@@ -17,7 +17,7 @@ export async function readNonPrimaryDataType(
   dataTypes: Record<string, DataType>,
   varSlot?: string,
   isElement: boolean = false
-): Promise<any> {
+): Promise<any[]> {
   const contractAddress = "0x7706566ACc3091911fc7da2EaBDD06116038AD6a";
 
   const contractHelper = new SolidityExtractor(
@@ -44,7 +44,7 @@ export async function readNonPrimaryDataType(
   // );
   console.log("Data----", data);
   // getData(storageLayout, "0x7abFF3DC3284807339154CFE8D31eaF152765303", 0);
-  return;
+  return data;
   const variableSlot =
     varSlot ?? findSlotForVariable(storageLayout, variableName);
   console.log({ storageLayout });
