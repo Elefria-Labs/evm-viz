@@ -17,6 +17,7 @@ import {
   Container,
   Input,
   Checkbox,
+  Select,
 } from "@chakra-ui/react";
 import type { NextPage } from "next";
 import Head from "next/head";
@@ -32,6 +33,8 @@ import { readNonPrimaryDataType } from "../components/viz/utils";
 import { sampleContract2 } from "../data/data";
 import { compile } from "../src/sol/compiler";
 import styles from "../styles/Home.module.css";
+import { SupportedChains } from "../config/constants";
+import { StorageLayout } from "../components/storage/StorageLayout";
 
 const Home: NextPage = () => {
   const [sourceCode, setSourceCode] = useState(sampleContract2);
@@ -177,14 +180,28 @@ const Home: NextPage = () => {
                                 placeholder="0xaaad12312....."
                               />
                             )}
-                            <Button
-                              colorScheme="teal"
-                              size="sm"
-                              my="4px"
-                              onClick={compileSourceCode}
-                            >
-                              Compile
-                            </Button>
+                            <Flex>
+                              <Select
+                                placeholder="Select option"
+                                w={240}
+                                mr={8}
+                                defaultValue={80_001}
+                              >
+                                {SupportedChains.map((chain) => (
+                                  <option value={chain.id} key={chain.id}>
+                                    {chain.name}
+                                  </option>
+                                ))}
+                              </Select>
+                              <Button
+                                colorScheme="teal"
+                                size="sm"
+                                my="4px"
+                                onClick={compileSourceCode}
+                              >
+                                Compile
+                              </Button>
+                            </Flex>
                           </Flex>
                         </CardBody>
                       </Card>
@@ -255,10 +272,14 @@ const Home: NextPage = () => {
                           <AccordionPanel pb={4}>
                             {storageLayout != null && !!dataTypes && (
                               <>
-                                <StorageLayoutParser
+                                {/* <StorageLayoutParser
                                   storageLayout={storageLayout}
                                   types={dataTypes}
                                   methodIdentifiers={methodIdentifiers}
+                                /> */}
+                                <StorageLayout
+                                  storageLayout={storageLayout}
+                                  types={dataTypes}
                                 />
                               </>
                             )}
