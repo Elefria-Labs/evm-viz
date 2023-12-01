@@ -113,10 +113,16 @@ class ContractHelperBase {
   public async getStorageAtSpecificSlot(
     slotAddress: string | number
   ): Promise<string> {
+    //@ts-ignore
+    const slot: string =
+      typeof slotAddress != "number" ? slotAddress : toHex(slotAddress);
+    console.log("slotAddress-------", slotAddress);
+    console.log("slot-------", slot);
     const data = await this.client.getStorageAt({
       address: `0x${this.contractAddress.split("x")?.[1]}`,
-      slot: toHex(slotAddress),
+      slot: `0x${slot.split("x")?.[1]}`,
     });
+    console.log("data-------", data);
     // TODO better error handling
     return data?.toString() ?? "";
 
@@ -239,7 +245,6 @@ class ArrayValues extends ContractHelperBase {
     const arrayLength = this.convertToNumber(
       await this.getStorageAtSpecificSlot(variableSlot)
     );
-
     if (nestedArrayLength > 1) {
       return this.getNestedArrayValues(
         "array",
@@ -268,12 +273,10 @@ class ArrayValues extends ContractHelperBase {
     const arrayLength = this.convertToNumber(
       await this.getStorageAtSpecificSlot(variableSlot)
     );
-
     if (arrayLength < 1) return [];
     let currentVariableSlot = Web3.utils.soliditySha3(
       this.ethweb3.eth.abi.encodeParameter("uint256", variableSlot)
     );
-
     if (nestedArrayLength > 0) {
       let arrayValue: any[] = [];
       for (let i = 0; i < arrayLength; i++) {
@@ -350,7 +353,11 @@ export class SolidityExtractor extends ContractHelperBase {
         currentVariableSlot?.length === 1 &&
         currentVariableSlot?.[0]?.includes("array")
       ) {
-        return await this.getArrayValues(slot, currentVariableSlot?.[0]);
+        console.log("getArrayValues slot", slot);
+        return await this.getArrayValues(
+          Number(slot),
+          currentVariableSlot?.[0]
+        );
       } else {
         const value = await this.getStorageAtSpecificSlot(Number(slot));
         return this.getValue(currentVariableSlot?.[0], value);
@@ -372,7 +379,7 @@ export class SolidityExtractor extends ContractHelperBase {
   }
 
   public async getArrayValues(
-    variableSlot: string | number,
+    variableSlot: number,
     type?: string | undefined
   ): Promise<number[] | string[]> {
     return this.arrayValues.getArrayValues(

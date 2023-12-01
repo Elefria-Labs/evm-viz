@@ -46,6 +46,7 @@ const Home: NextPage = () => {
   const [dataTypes, setDataTypes] = useState<Record<string, DataType>>();
   const [highlightedCells, setHighlightedCells] = useState<number[]>([]);
   const [methodIdentifiers, setMethodIdentifiers] = useState<any>();
+  const [slotValues, setSlotValues] = useState<any[]>();
   const [show, setShow] = useState(false);
 
   const compileSourceCode = (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -81,6 +82,7 @@ const Home: NextPage = () => {
       "test",
       dataTypes
     );
+    setSlotValues(data);
     console.log("readNonPrimaryDataType", data);
   };
 
@@ -280,6 +282,7 @@ const Home: NextPage = () => {
                                 <StorageLayout
                                   storageLayout={storageLayout}
                                   types={dataTypes}
+                                  slotValues={slotValues}
                                 />
                               </>
                             )}
