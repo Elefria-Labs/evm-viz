@@ -536,7 +536,10 @@ class ContractHelperBase {
         true
       ) as unknown as any[];
     }
-    return await this.readStorageSlot(currentSlot);
+    return this.convertValue(
+      await this.readStorageSlot(currentSlot),
+      mappingTypes[mappingTypes.length - 1]
+    );
   }
 }
 
