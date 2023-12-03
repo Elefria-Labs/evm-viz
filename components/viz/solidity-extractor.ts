@@ -427,7 +427,7 @@ class ContractHelperBase {
     type: string,
     variableSlot: string | number,
     nestedArrayLength: number
-  ): Promise<any[] | undefined> {
+  ): Promise<string[] | number[] | undefined> {
     const arrayLength = this.convertToNumber(
       await this.readStorageSlot(variableSlot)
     );
@@ -439,7 +439,7 @@ class ContractHelperBase {
     );
 
     if (nestedArrayLength > 0) {
-      let arrayValue: any[] = [];
+      let arrayValue: Promise<string[] | number[] | undefined>[] = [];
       for (let i = 0; i < arrayLength; i++) {
         arrayValue[i] = this.retrieveNestedArrayValues(
           type,
@@ -487,14 +487,14 @@ class ContractHelperBase {
    * @param {string} mappingStructure - The structure of the mapping.
    * @param {string} variableSlot - The slot identifier or index of the mapping in storage.
    * @param {string[]} keys - The keys associated with the mapping.
-   * @returns {Promise<any[]>} A promise that resolves to an array of values from the mapping.
+   * @returns {Promise<{ [key: string]: number | string }[] | string | number> } A promise that resolves to an array of values from the mapping.
    */
 
   async readMappingFromStorage(
     mappingStructure: string,
     variableSlot: string,
     keys: string[]
-  ): Promise<any[]> {
+  ) {
     const delimiters = /[(,]/;
     const mappingTypes = mappingStructure.split(delimiters);
 
@@ -536,7 +536,7 @@ class ContractHelperBase {
         true
       ) as unknown as any[];
     }
-    return []; // Handle other cases if needed
+    return await this.readStorageSlot(currentSlot);
   }
 }
 
@@ -628,7 +628,7 @@ export class SolidityExtractor extends ContractHelperBase {
   public async retrieveMappingValues(
     variableSlot: string,
     keys: string[]
-  ): Promise<{ [key: string]: number | string }[]> {
+  ): Promise<{ [key: string]: number | string }[] | string | number> {
     return this.readMappingFromStorage(
       this.slotStructure[variableSlot]?.variableSlot[0],
       variableSlot,
