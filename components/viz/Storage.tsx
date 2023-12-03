@@ -39,7 +39,7 @@ export type DataType = {
     offset: number;
     slot: number;
     type: string;
-  };
+  }[];
   base?: string;
   encoding: string;
   label: string;
