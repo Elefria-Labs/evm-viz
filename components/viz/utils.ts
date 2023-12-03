@@ -31,10 +31,7 @@ export async function readNonPrimaryDataType(
     dataTypes
     // "https://localhost:8545" // this is giving error
   );
-
-  // getContractStorage(0);
-
-  // const data = await contractHelper.getMappingValues("10", [
+  // const data = await contractHelper.retrieveMappingValues("10", [
   //   "2",
   //   "0x8B20814C182DbF6687957A80C4fCD9e6f10f05B9",
   // ]);
@@ -49,51 +46,6 @@ export async function readNonPrimaryDataType(
   // );
   console.log("Data----", data);
   // getData(storageLayout, "0x7abFF3DC3284807339154CFE8D31eaF152765303", 0);
-  return;
-  const variableSlot =
-    varSlot ?? findSlotForVariable(storageLayout, variableName);
-  console.log({ storageLayout });
-  console.log({ variableName });
-  console.log({ variableSlot });
-
-  if (variableSlot !== null) {
-    // If the variable exists in the storage layout
-    const variableType = findTypeForVariable(storageLayout, variableName);
-    console.log({ variableType });
-    if (variableType == null) {
-      return null;
-    }
-
-    if (variableType === "struct" && !isElement) {
-      // If the variable is a struct, read each field separately
-      const structFields = findFieldsForStruct(storageLayout, variableName);
-
-      const structData = {};
-      for (const field of structFields) {
-        const fieldValue = readNonPrimaryDataType(
-          storageLayout,
-          `${variableName}.${field}`,
-          dataTypes
-        );
-        structData[field] = fieldValue;
-      }
-
-      return structData;
-    } else if (variableType.includes("array") && !isElement) {
-    } else {
-      // For other non-primary data types, read the value from the corresponding slot
-      const slotValue = await getContractStorage(variableSlot); // contractStorage[variableSlot];
-      if (slotValue == null) {
-        console.log("slot null");
-        return null;
-      }
-      const elementType = getDataTypeFromTypeStr(dataTypes, variableType);
-      return parseValueAccordingToType(elementType.label, slotValue);
-    }
-  } else {
-    // If the variable doesn't exist in the storage layout
-    return null;
-  }
 }
 
 // Helper function to find the slot for a variable in the storage layout
@@ -176,7 +128,6 @@ function findArrayLength(
 
   if (lengthEntry) {
     // Calculate the length based on the size of the length slot
-    const length = lengthEntry.size / 32; // Assuming each slot holds a uint256 (32 bytes)
     return length;
   }
 

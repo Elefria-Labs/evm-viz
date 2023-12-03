@@ -30,7 +30,16 @@ export type SlotType = {
   offset: number;
   slot: string;
 };
+
 export type DataType = {
+  members: {
+    astId: number;
+    contract: string;
+    label: string;
+    offset: number;
+    slot: number;
+    type: string;
+  };
   base?: string;
   encoding: string;
   label: string;
@@ -217,6 +226,7 @@ function generateShades() {
   for (var i = 0; i < numOfShades; i++) {
     // Create shades!
     let hsl = "hsl(" + hue + ", " + rand(10, 90) + "%, " + rand(10, 90) + "%)";
+    //@ts-ignore
     colors.push(hsl);
   }
   return colors;
